@@ -144,8 +144,8 @@ attached to `eccn` could have stopped it.
 | [`example-contracts/`](example-contracts/README.md) | Worked contracts, matched tool output schemas, and the mock documents |
 | `demo/` | Scripts to seed the mock MCP server, deploy the policy and probe every scenario |
 | `assets/` | The diagrams above, rendered by `python3 assets/diagrams.py` |
-| [`p4a-idea-mcp-semantic-contract.md`](p4a-idea-mcp-semantic-contract.md) | The pitch: rationale, evidence, and open questions for the community |
-| [`opus5-build-spec-semantic-contract.md`](opus5-build-spec-semantic-contract.md) | The build specification the implementation is held to |
+| `p4a-idea-mcp-semantic-contract.md` | The pitch: rationale, evidence, and open questions. Kept out of the published repo by `.gitignore` |
+| `opus5-build-spec-semantic-contract.md` | The build specification the implementation is held to. Also unpublished |
 
 ## Quick start
 
