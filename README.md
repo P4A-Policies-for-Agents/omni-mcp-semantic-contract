@@ -64,6 +64,15 @@ Nothing else is touched. Error results are never annotated, `structuredContent` 
 never created where the upstream returned none, and any runtime failure passes the
 response through unchanged.
 
+![How the policy interprets a response](assets/how-it-works.png)
+
+Read it left to right. Every rule's condition is a path into the document, so the
+gateway can decide from the payload alone whether the rule applies — four fire here
+and one stays silent, because the communication hold is on a different ship-to. None
+of what those rules *carry* is in the document: the recall, the suspended service,
+the supersession and the pricing migration are held by four different teams. That
+asymmetry is the whole policy.
+
 ## Business benefits
 
 **It closes a failure mode with no error signal.** Rate limits, ABAC and schema

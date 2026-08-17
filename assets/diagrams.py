@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Renders the demo diagrams.
 
-Six figures: four scenario diagrams showing what diverges for a given prompt,
-one architecture diagram of the request/response path, and the rule map tying
-each rule's `when` expression to the system its guidance comes from.
+Seven figures: four scenario diagrams showing what diverges for a given prompt,
+one architecture diagram of the request/response path, the rule map tying each
+rule's `when` expression to the system its guidance comes from, and a functional
+view of a single response being interpreted field by field.
 
     python3 assets/diagrams.py
 """
@@ -563,8 +564,216 @@ def render_rule_map():
     save(fig, "delivery-rules-map.png")
 
 
+# ---------------------------------------------------------------------------
+# Functional diagram: how a response is interpreted
+# ---------------------------------------------------------------------------
+
+# (path, value, index into MECH_RULES, or None when no rule reads the field)
+MECH_FIELDS = [
+    ("header.deliveryId", '"0080067890"', None),
+    ("header.plant", '"1042"', 0),
+    ("header.shipToParty", '"C-10014"', 1),
+    ("header.createdOn", '"2026-07-28"', 0),
+    ("items[0].material", '"MAT-88120"', 2),
+    ("items[0].netValue", "18450.0", None),
+    ("items[1].batchNumber", '"B-7741-2026"', 3),
+    ("items[1].netValue", "24880.0", None),
+    ("status.goodsIssued", "true", None),
+    ("shipping.carrier", '"EXP-DE"', 4),
+    ("shipping.serviceLevel", '"EXPRESS"', 4),
+    ("shipping.estimatedArrival", '"2026-08-19"', None),
+]
+
+# Ordered to follow the document, so the field-to-rule lines barely cross.
+MECH_RULES = [
+    ("legacy-plant-pricing", "warn",
+     ['payload.header.plant == "1042" and',
+      'payload.header.createdOn < "2026-08-01"'],
+     "Amounts predate the pricing migration. Re-price before quoting.",
+     "Finance / IT  ·  FI-MIG-1042"),
+    ("customer-communication-hold", "silent",
+     ['payload.header.shipToParty == "C-10029"'],
+     "Reads shipToParty, compares false: the hold is on C-10029.",
+     "Legal  ·  LEG-2026-0088"),
+    ("material-superseded", "warn",
+     ['payload.items[0].material == "MAT-88120" or',
+      'payload.items[1].material == "MAT-88120"'],
+     "MAT-88120 was superseded by MAT-88121 on 2026-08-03.",
+     "Engineering  ·  ECN-4471"),
+    ("batch-under-recall", "critical",
+     ['payload.items[0].batchNumber == "B-7741-2026" or',
+      'payload.items[1].batchNumber == "B-7741-2026"'],
+     "That batch went under recall on 2026-08-15. Do not deliver.",
+     "Quality Assurance  ·  QN-2026-0412"),
+    ("carrier-service-suspended", "critical",
+     ['payload.shipping.carrier == "EXP-DE" and',
+      'payload.shipping.serviceLevel == "EXPRESS"'],
+     "Express service stopped 2026-08-16 after the Cologne hub fire.",
+     "Logistics  ·  LOG-INC-2026-0231"),
+]
+
+MECH_OUTCOMES = [
+    ("Can we promise 19 August?",
+     "No date. The carrier stopped running", "that service the day it was handed over."),
+    ("Can we invoice these line values?",
+     "Not until the lines are re-priced in", "the live system. One material is superseded."),
+    ("Is this one safe to discuss at all?",
+     "Yes. The communication hold is on a", "different ship-to, so that rule stayed silent."),
+]
+
+
+def render_mechanism():
+    h = 10.6
+    fig, ax = canvas(h)
+    heading(
+        ax, h,
+        "How the policy interprets a response",
+        "Rules bind to individual fields of the returned document. The condition comes from the payload; the guidance comes from a system the payload knows nothing about.",
+    )
+
+    C1X, C1W = 0.35, 4.55
+    C2X, C2W = 6.05, 5.55
+    C3X, C3W = 12.15, 4.50
+    TOP = 8.45
+
+    for x, label, caption in [
+        (C1X, "1  ·  THE DATA OBJECT", "what the ERP returned, untouched"),
+        (C2X, "2  ·  RESPONSE INTERPRETATION", "one contract, six rules, evaluated in order"),
+        (C3X, "3  ·  WHAT THE AGENT MAY SAY", "the result, and the business answer"),
+    ]:
+        ax.text(x, 8.95, label, fontsize=9.5, fontweight="bold", color=MUTED, va="center")
+        ax.text(x, 8.70, caption, fontsize=8.5, color=MUTED, va="center", style="italic")
+
+    # ---- 1. the document -------------------------------------------------
+    box(ax, C1X, 2.40, C1W, TOP - 2.40, "#ffffff", SLATE_EDGE, lw=1.4)
+    ax.text(C1X + 0.26, 8.11, "result.structuredContent", fontsize=10,
+            fontweight="bold", color=INK, va="center", family=MONO)
+    ax.text(C1X + 0.26, 7.83, "abridged: the fields rules read, and some they do not",
+            fontsize=8.2, color=MUTED, va="center", style="italic")
+
+    row_y = []
+    for i, (path, value, rule) in enumerate(MECH_FIELDS):
+        y = 7.45 - 0.42 * i
+        row_y.append(y)
+        if rule is not None:
+            silent = MECH_RULES[rule][1] == "silent"
+            box(ax, C1X + 0.16, y - 0.17, C1W - 0.32, 0.34,
+                WARN_FILL if silent else GOV_FILL,
+                WARN_EDGE if silent else GOV_EDGE, lw=1.0)
+            colour = MUTED if silent else GOV_INK
+        else:
+            colour = "#94a3b8"
+        ax.text(C1X + 0.30, y, path, fontsize=8.4, color=colour, va="center", family=MONO)
+        ax.text(C1X + C1W - 0.30, y, value, fontsize=8.4, color=colour,
+                va="center", ha="right", family=MONO)
+
+    # ---- 2. the rules ----------------------------------------------------
+    gap = 0.14
+    centres = []
+    top = TOP
+    for rid, sev, when, guidance, owner in MECH_RULES:
+        card_h = 1.06 + 0.20 * (len(when) - 1)
+        cy = top - card_h / 2
+        centres.append(cy)
+        silent = sev == "silent"
+        crit = sev == "critical"
+        box(ax, C2X, top - card_h, C2W, card_h,
+            WARN_FILL if silent else GOV_FILL,
+            WARN_EDGE if silent else GOV_EDGE, lw=1.1 if silent else 1.5)
+
+        ax.text(C2X + 0.24, top - 0.25, rid, fontsize=9.6, family=MONO,
+                fontweight="bold", color=MUTED if silent else GOV_INK, va="center")
+        ax.text(C2X + C2W - 0.24, top - 0.25,
+                "stays silent" if silent else sev, fontsize=8.4, ha="right", va="center",
+                fontweight="bold", color=MUTED if silent else (GOV_EDGE if crit else MUTED))
+        for j, line in enumerate(when):
+            ax.text(C2X + 0.24, top - 0.51 - 0.20 * j, line, fontsize=6.9, family=MONO,
+                    color="#94a3b8" if silent else BODY, va="center")
+
+        # A dashed stub marks the knowledge the rule carries, keyed to the legend.
+        gy = top - card_h + 0.34
+        ax.plot([C2X + 0.26, C2X + 0.54], [gy, gy],
+                linestyle=(0, (2, 2)), color=MUTED if silent else GOV_EDGE, linewidth=1.2)
+        ax.text(C2X + 0.66, gy, guidance, fontsize=8.3,
+                color=MUTED if silent else INK, va="center",
+                style="italic" if silent else "normal")
+        ax.text(C2X + 0.66, gy - 0.24, owner, fontsize=7.8, color=MUTED,
+                va="center", style="italic")
+        top -= card_h + gap
+
+    # ---- field -> rule lineage ------------------------------------------
+    for i, (_, _, rule) in enumerate(MECH_FIELDS):
+        if rule is None:
+            continue
+        silent = MECH_RULES[rule][1] == "silent"
+        ax.add_patch(
+            FancyArrowPatch(
+                (C1X + C1W + 0.04, row_y[i]), (C2X - 0.04, centres[rule]),
+                connectionstyle="arc3,rad=0.12",
+                arrowstyle="-|>,head_length=5,head_width=3",
+                color=WARN_EDGE if silent else GOV_EDGE,
+                linewidth=1.0 if silent else 1.5,
+                alpha=0.75 if silent else 0.95,
+                shrinkA=0, shrinkB=0, zorder=4,
+            )
+        )
+
+    # ---- 3. result and business outcome ----------------------------------
+    box(ax, C3X, 5.55, C3W, 2.90, GOV_FILL, GOV_EDGE, lw=1.5)
+    ax.text(C3X + 0.26, 8.11, "the result the client receives", fontsize=9.6,
+            fontweight="bold", color=GOV_INK, va="center")
+    for i, (line, colour, bold) in enumerate([
+        ("structuredContent    unchanged, byte for byte", BODY, False),
+        ("  + _semanticContract    4 entries", GOV_INK, True),
+        ("content[]            + trusted block", GOV_INK, True),
+    ]):
+        ax.text(C3X + 0.26, 7.72 - 0.34 * i, line, fontsize=8.4, family=MONO,
+                color=colour, va="center", fontweight="bold" if bold else "normal")
+    ax.plot([C3X + 0.26, C3X + C3W - 0.26], [6.52, 6.52], color=RULE_LINE, linewidth=1)
+    ax.text(C3X + 0.26, 6.24, "Four rules fired, one stayed silent.", fontsize=8.6,
+            color=INK, va="center")
+    ax.text(C3X + 0.26, 5.96, "Nothing in the document itself was rewritten.",
+            fontsize=8.6, color=MUTED, va="center", style="italic")
+
+    box(ax, C3X, 1.98, C3W, 3.05, "#ffffff", SLATE_EDGE, lw=1.4)
+    ax.text(C3X + 0.26, 4.69, "the business questions it changes", fontsize=9.6,
+            fontweight="bold", color=INK, va="center")
+    y = 4.28
+    for question, a1, a2 in MECH_OUTCOMES:
+        ax.text(C3X + 0.26, y, question, fontsize=8.6, color=GOV_INK,
+                va="center", fontweight="bold")
+        ax.text(C3X + 0.26, y - 0.26, a1, fontsize=8.4, color=BODY, va="center")
+        ax.text(C3X + 0.26, y - 0.50, a2, fontsize=8.4, color=BODY, va="center")
+        y -= 0.86
+
+    arrow(ax, (C2X + C2W + 0.06, 7.00), (C3X - 0.06, 7.00), color=GOV_EDGE, lw=1.8)
+
+    # ---- legend ----------------------------------------------------------
+    ly = 1.32
+    ax.add_patch(
+        FancyArrowPatch((C1X, ly), (C1X + 0.55, ly),
+                        arrowstyle="-|>,head_length=5,head_width=3",
+                        color=GOV_EDGE, linewidth=1.5, shrinkA=0, shrinkB=0)
+    )
+    ax.text(C1X + 0.70, ly, "information — a field the condition reads",
+            fontsize=8.6, color=BODY, va="center")
+    ax.plot([5.95, 6.50], [ly, ly], linestyle=(0, (2, 2)), color=GOV_EDGE, linewidth=1.4)
+    ax.text(6.65, ly, "knowledge — the fact the guidance carries, held elsewhere",
+            fontsize=8.6, color=BODY, va="center")
+    box(ax, 12.15, ly - 0.17, 0.55, 0.34, "#ffffff", SLATE_EDGE, lw=1.0)
+    ax.text(12.85, ly, "grey — no rule reads it, forwarded untouched",
+            fontsize=8.6, color=BODY, va="center")
+
+    footer(
+        ax,
+        "Every condition is a payload field; not one of the facts in the guidance is. That asymmetry is the whole policy: the trigger is in the document, the meaning is not.",
+    )
+    save(fig, "how-it-works.png")
+
+
 if __name__ == "__main__":
     for spec in SCENARIOS:
         render_scenario(spec)
     render_pipeline()
     render_rule_map()
+    render_mechanism()
