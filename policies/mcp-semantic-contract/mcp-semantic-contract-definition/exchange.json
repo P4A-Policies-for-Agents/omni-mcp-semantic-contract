@@ -1,5 +1,9 @@
 {
+  "main": "gcl.yaml",
   "groupId": "82a0453b-22e6-430d-bbf4-35b989d043dc",
   "assetId": "mcp-semantic-contract",
-  "version": "1.1.0"
+  "version": "1.1.0",
+  "name": "MCP Semantic Contract",
+  "classifier": "policy-definition",
+  "tags": ["mcp", "semantic-contract", "erp", "governance", "agents", "ai"]
 }
