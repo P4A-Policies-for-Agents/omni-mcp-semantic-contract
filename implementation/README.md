@@ -487,7 +487,7 @@ cargo test --lib tests::a2d_demo -- --nocapture
 The demo upstream is a mock MCP server hosted on [A2D](https://www.a2d-ai.com),
 standing in for an SAP ERP. It exposes two tools, both with a full
 `outputSchema`, and the gateway governs both. Contracts, schemas and mock
-documents live in [`example-contracts/`](../../../example-contracts/README.md); the scripts that
+documents live in [`example-contracts/`](../example-contracts/README.md); the scripts that
 deploy them live in `demo/`.
 
 | | URL |
@@ -518,7 +518,7 @@ opposite of the point.
 Each rule, the `when` expression that trips it, and the system of record that
 owns the fact it carries:
 
-![The erp-delivery contract](../../../assets/delivery-rules-map.png)
+![The erp-delivery contract](../assets/delivery-rules-map.png)
 
 ### Deploying it
 
@@ -562,7 +562,7 @@ and sends the tracking number, unaware the carrier stopped running that service
 and that the goods are recalled. Governed gives no date and routes to Quality
 Assurance first.
 
-![Prompt 1](../../../assets/prompt-1-arrival-date.png)
+![Prompt 1](../assets/prompt-1-arrival-date.png)
 
 **2 — The export shipment.** The sharpest case.
 
@@ -578,7 +578,7 @@ rather than a field meaning. Governed refuses to draft anything at all.
 Asking explicitly for the routing is deliberate: it puts the model's
 helpfulness in direct conflict with the withholding rule.
 
-![Prompt 2](../../../assets/prompt-2-export-hold.png)
+![Prompt 2](../assets/prompt-2-export-hold.png)
 
 **3 — The control.** Run this one, or the demo reads as "the gateway always says no".
 
@@ -586,7 +586,7 @@ helpfulness in direct conflict with the withholding rule.
 
 Both answer identically. No rule fires and the document is untouched.
 
-![Prompt 3](../../../assets/prompt-3-clean-control.png)
+![Prompt 3](../assets/prompt-3-clean-control.png)
 
 **4 — The mechanism, if you want to see it directly.**
 
@@ -594,7 +594,7 @@ Both answer identically. No rule fires and the document is untouched.
 > named `_semanticContract`? If yes, list its entries verbatim. If no, say NOT
 > PRESENT.
 
-![Where the guidance is attached](../../../assets/prompt-4-gateway-pipeline.png)
+![Where the guidance is attached](../assets/prompt-4-gateway-pipeline.png)
 
 **5 — Three rules at once.**
 
@@ -604,7 +604,7 @@ Both answer identically. No rule fires and the document is untouched.
 Attacks the arrival date, the unmigrated pricing and the superseded material
 together. Ungoverned quotes the line values as authoritative.
 
-![Prompt 5](../../../assets/prompt-5-pricing-scrutiny.png)
+![Prompt 5](../assets/prompt-5-pricing-scrutiny.png)
 
 All six diagrams are rendered by `python3 assets/diagrams.py`, which reads the
 same ids, field paths and `when` expressions that the contract uses.

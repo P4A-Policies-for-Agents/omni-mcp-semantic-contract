@@ -139,8 +139,8 @@ attached to `eccn` could have stopped it.
 
 | Path | What it is |
 |---|---|
-| [`policies/mcp-semantic-contract/mcp-semantic-contract-Omni/`](policies/mcp-semantic-contract/mcp-semantic-contract-Omni/README.md) | The policy implementation in Rust, compiled to WASM. **Start here** — it documents the rule grammar, the delivery channels, the security model and the demo |
-| `policies/mcp-semantic-contract/mcp-semantic-contract-definition/` | The policy definition (`gcl.yaml`) published to Anypoint Exchange |
+| [`implementation/`](implementation/README.md) | The policy implementation in Rust, compiled to WASM. **Start here** — it documents the rule grammar, the delivery channels, the security model and the demo |
+| [`definition/`](definition/README.md) | The policy definition (`gcl.yaml`) published to Anypoint Exchange |
 | [`example-contracts/`](example-contracts/README.md) | Worked contracts, matched tool output schemas, and the mock documents |
 | `demo/` | Scripts to seed the mock MCP server, deploy the policy and probe every scenario |
 | `assets/` | The diagrams above, rendered by `python3 assets/diagrams.py` |
@@ -150,7 +150,7 @@ attached to `eccn` could have stopped it.
 ## Quick start
 
 ```bash
-cd policies/mcp-semantic-contract/mcp-semantic-contract-Omni
+cd implementation
 make setup                     # one-time: cargo-anypoint, llvm-cov
 cargo test --lib               # 250 tests, no network or containers
 make build                     # WASM + policy bundle

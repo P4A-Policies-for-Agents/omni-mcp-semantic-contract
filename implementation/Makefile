@@ -27,7 +27,7 @@ build-asset-files:  ## Retrieves the definition from exchange
 # Generate against gcl_src.yaml, not the published gcl.yaml: the definition
 # build strips `format: service`, and without it config-gen emits a String for
 # remoteContractUrl and no abi.service_create call, so the fetch has no cluster.
-	@cargo anypoint config-gen -p -m ../mcp-semantic-contract-definition/target/definition/gcl_src.yaml -o ./src/generated/config.rs
+	@cargo anypoint config-gen -p -m ../definition/target/definition/gcl_src.yaml -o ./src/generated/config.rs
 
 .PHONY: build
 build: ## Builds the policy implementation

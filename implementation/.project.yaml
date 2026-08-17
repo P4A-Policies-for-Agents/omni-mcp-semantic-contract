@@ -2,4 +2,4 @@ implementation:
   ref: .
 definition:
   refMode: filesystem
-  ref: ../mcp-semantic-contract-definition
+  ref: ../definition

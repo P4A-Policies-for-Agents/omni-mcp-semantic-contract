@@ -1,6 +1,6 @@
 # Example contracts
 
-Worked examples for the [MCP Semantic Contract](../policies/mcp-semantic-contract/mcp-semantic-contract-flex/README.md)
+Worked examples for the [MCP Semantic Contract](../implementation/README.md)
 policy. Nothing here is policy code and nothing is loaded at build time: these
 are reference artifacts for the demo, and the material the tests are pinned
 against.
@@ -69,4 +69,4 @@ editing a rule here and re-running the deploy is the whole change cycle. The
 
 The grammar for the `when` attribute, the patterns worth knowing and the
 precedence trap are documented in
-[the policy README](../policies/mcp-semantic-contract/mcp-semantic-contract-flex/README.md#writing-rules-the-when-expression).
+[the policy README](../implementation/README.md#writing-rules-the-when-expression).
