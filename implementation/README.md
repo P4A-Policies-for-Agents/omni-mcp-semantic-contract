@@ -606,7 +606,7 @@ together. Ungoverned quotes the line values as authoritative.
 
 ![Prompt 5](../assets/prompt-5-pricing-scrutiny.png)
 
-All six diagrams are rendered by `python3 assets/diagrams.py`, which reads the
+All seven diagrams are rendered by `python3 assets/diagrams.py`, which reads the
 same ids, field paths and `when` expressions that the contract uses.
 
 ## Local playground
