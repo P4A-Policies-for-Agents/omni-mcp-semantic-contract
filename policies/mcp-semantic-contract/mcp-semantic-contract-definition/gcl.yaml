@@ -1,0 +1,225 @@
+---
+apiVersion: gateway.mulesoft.com/v1alpha1
+kind: Extension
+metadata:
+  labels:
+    title: MCP Semantic Contract
+    category: MCP
+    description: >-
+      Appends deterministic, versioned interpretation guidance to MCP
+      tools/call results when a contract rule matches the payload. No LLM in
+      the data path; structuredContent is never modified.
+    metadata/interfaceScope: api
+    metadata/capabilities/assetTypes: mcp
+spec:
+  extends:
+    - name: extension-definition
+      namespace: default
+  properties:
+    envelope:
+      type: object
+      description: Trust envelope wrapped around gateway-originated guidance.
+      properties:
+        delimiter:
+          type: string
+          description: >-
+            Fixed marker opening the injected block. Upstream text carrying
+            this marker is escaped so a compromised backend cannot forge it.
+          default: "=== GATEWAY SEMANTIC CONTRACT (trusted) ==="
+        sanitizeUpstreamDelimiter:
+          type: boolean
+          description: >-
+            Escape the delimiter wherever it appears in upstream content.
+            Disabling this removes the policy's main security property.
+          default: true
+      required:
+        - delimiter
+        - sanitizeUpstreamDelimiter
+    contracts:
+      type: array
+      description: >-
+        Contract artifacts bound to this asset. Every contract must resolve to
+        at least one tool or the policy refuses to load.
+      items:
+        type: object
+        properties:
+          contractId:
+            type: string
+            description: Stable identifier used in metrics and merge ordering.
+          format:
+            type: string
+            description: >-
+              json delivers conditional rules. markdown and text are
+              unconditional. Remote artifacts are configured under
+              remoteContract instead.
+            enum:
+              - json
+              - markdown
+              - text
+          inline:
+            type: string
+            description: The contract content itself.
+          toolMapping:
+            type: array
+            description: >-
+              Tools this contract governs. Required for text; overrides the
+              artifact's own mapping for json and markdown when non-empty.
+            items:
+              type: string
+          severity:
+            type: string
+            description: Severity applied to markdown and text contracts.
+            enum:
+              - info
+              - warn
+              - critical
+            default: warn
+        required:
+          - contractId
+          - format
+      default: []
+    remoteContractUrl:
+      type: string
+      format: service
+      description: >-
+        Full URL of a hash-pinned contract artifact, including scheme, host,
+        port and path. The gateway registers an outbound service for this
+        authority. Leave unset to use inline contracts only.
+    remoteContract:
+      type: object
+      description: >-
+        Settings for the artifact at remoteContractUrl. Fetched at policy init
+        and refreshed on TTL expiry, never per request.
+      properties:
+        contractId:
+          type: string
+          description: Identifier for the fetched contract.
+          default: remote
+        integrity:
+          type: string
+          description: >-
+            Required sha256 pin, as sha256:<64 hex chars>. A mismatch drops
+            the contract entirely; unverified content is never used.
+        cacheTtlSeconds:
+          type: integer
+          description: Seconds before the artifact is refetched.
+          default: 900
+        onFetchFailure:
+          type: string
+          description: >-
+            passThrough governs nothing until the next successful fetch.
+            useStale keeps serving the last verified copy.
+          enum:
+            - passThrough
+            - useStale
+          default: useStale
+        toolMapping:
+          type: array
+          description: >-
+            Overrides the artifact's own tool mapping. Required when the
+            artifact is plain text.
+          items:
+            type: string
+        severity:
+          type: string
+          description: Severity applied when the artifact is markdown or text.
+          enum:
+            - info
+            - warn
+            - critical
+          default: warn
+    merge:
+      type: object
+      description: How rules from multiple contracts are combined and budgeted.
+      properties:
+        order:
+          type: array
+          description: >-
+            Format precedence when the same rule id appears in more than one
+            contract. Only json, markdown, text and url are accepted.
+          items:
+            type: string
+          default:
+            - json
+            - url
+            - markdown
+            - text
+        duplicateRuleIds:
+          type: string
+          description: Which occurrence of a duplicated rule id survives.
+          enum:
+            - firstWins
+            - lastWins
+          default: firstWins
+        globalMaxTokens:
+          type: integer
+          description: >-
+            Approximate token ceiling per tool result, counted as characters
+            divided by four. Must be greater than zero.
+          default: 600
+        onBudgetExceeded:
+          type: string
+          description: >-
+            dropBySeverity removes info rules first, then warn. Rules are never
+            truncated and critical rules are never dropped.
+          enum:
+            - dropBySeverity
+          default: dropBySeverity
+      required:
+        - globalMaxTokens
+        - onBudgetExceeded
+        - duplicateRuleIds
+    dedupe:
+      type: object
+      description: Suppression of guidance already delivered to the same caller.
+      properties:
+        injectOncePer:
+          type: string
+          description: >-
+            call injects every matching rule on every call. session suppresses
+            repeats within one MCP session and requires Mcp-Session-Id.
+          enum:
+            - call
+            - session
+          default: call
+        sessionTtlSeconds:
+          type: integer
+          description: Lifetime of a session dedupe entry.
+          default: 900
+      required:
+        - injectOncePer
+    sse:
+      type: object
+      description: >-
+        Handling of text/event-stream tool results. Annotating one requires
+        buffering it to end of stream, so it is opt-in.
+      properties:
+        mode:
+          type: string
+          description: >-
+            passThrough forwards the stream untouched. annotate buffers the
+            frames of a POST response, rewrites their JSON-RPC payloads and
+            re-emits them, which only terminates if the upstream closes the
+            stream after answering.
+          enum:
+            - passThrough
+            - annotate
+          default: passThrough
+        streamTimeoutMillis:
+          type: integer
+          description: >-
+            Upstream timeout applied when mode is annotate, bounding how long a
+            stream that never closes can stall the response. Ignored under
+            passThrough, which leaves MCP calls untimed.
+          default: 60000
+    warnOnUncoveredTools:
+      type: boolean
+      description: >-
+        Log a warning listing tools called on this asset that no contract
+        covers. Never blocks traffic.
+      default: true
+  required:
+    - envelope
+    - contracts
+    - merge
+    - dedupe

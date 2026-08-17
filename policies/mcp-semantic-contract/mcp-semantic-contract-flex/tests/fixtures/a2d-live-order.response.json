@@ -1,0 +1,12 @@
+{
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"header\": {\n    \"salesOrderId\": \"0000004711\",\n    \"customerId\": \"C-10029\",\n    \"customerName\": \"Nordwind Handels GmbH\",\n    \"documentCurrency\": \"EUR\",\n    \"exchangeRate\": 1,\n    \"deliveryBlock\": \"Z3\",\n    \"orderStatus\": \"B\"\n  },\n  \"schedule\": {\n    \"requestedDeliveryDate\": \"2026-08-04\",\n    \"confirmedDeliveryDate\": \"2026-07-22\",\n    \"materialAvailabilityDate\": \"2026-08-11\"\n  },\n  \"items\": [\n    {\n      \"itemNumber\": \"000010\",\n      \"material\": \"MAT-88231\",\n      \"description\": \"Rotor assembly, 40mm\",\n      \"orderQuantity\": 288,\n      \"deliveredQuantity\": 288,\n      \"goodsIssuedQuantity\": 0,\n      \"uom\": \"EA\",\n      \"salesUom\": \"CS\",\n      \"conversionFactor\": 12,\n      \"netValue\": 184320\n    }\n  ],\n  \"credit\": {\n    \"creditStatus\": \"B\",\n    \"exposure\": 184320,\n    \"creditLimit\": 150000,\n    \"lastReviewDate\": \"2026-05-30\"\n  },\n  \"holds\": [],\n  \"meta\": {\n    \"source\": \"replica\",\n    \"replicationLagSeconds\": 934,\n    \"retrievedAt\": \"2026-08-14T07:11:02Z\"\n  }\n}"
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 1
+}

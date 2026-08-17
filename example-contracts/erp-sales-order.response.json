@@ -1,0 +1,55 @@
+{
+  "jsonrpc": "2.0",
+  "id": 42,
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"header\":{\"salesOrderId\":\"0000004711\",\"customerId\":\"C-10029\",\"customerName\":\"Nordwind Handels GmbH\",\"documentCurrency\":\"EUR\",\"exchangeRate\":1.0,\"deliveryBlock\":\"Z3\",\"orderStatus\":\"B\"},\"schedule\":{\"requestedDeliveryDate\":\"2026-08-04\",\"confirmedDeliveryDate\":\"2026-07-22\",\"materialAvailabilityDate\":\"2026-08-11\"},\"items\":[{\"itemNumber\":\"000010\",\"material\":\"MAT-88231\",\"description\":\"Rotor assembly, 40mm\",\"orderQuantity\":288,\"deliveredQuantity\":288,\"goodsIssuedQuantity\":0,\"uom\":\"EA\",\"salesUom\":\"CS\",\"conversionFactor\":12,\"netValue\":184320.0}],\"credit\":{\"creditStatus\":\"B\",\"exposure\":184320.0,\"creditLimit\":150000.0,\"lastReviewDate\":\"2026-05-30\"},\"holds\":[],\"meta\":{\"source\":\"replica\",\"replicationLagSeconds\":934,\"retrievedAt\":\"2026-08-14T07:11:02Z\"}}"
+      }
+    ],
+    "structuredContent": {
+      "header": {
+        "salesOrderId": "0000004711",
+        "customerId": "C-10029",
+        "customerName": "Nordwind Handels GmbH",
+        "documentCurrency": "EUR",
+        "exchangeRate": 1.0,
+        "deliveryBlock": "Z3",
+        "orderStatus": "B"
+      },
+      "schedule": {
+        "requestedDeliveryDate": "2026-08-04",
+        "confirmedDeliveryDate": "2026-07-22",
+        "materialAvailabilityDate": "2026-08-11"
+      },
+      "items": [
+        {
+          "itemNumber": "000010",
+          "material": "MAT-88231",
+          "description": "Rotor assembly, 40mm",
+          "orderQuantity": 288,
+          "deliveredQuantity": 288,
+          "goodsIssuedQuantity": 0,
+          "uom": "EA",
+          "salesUom": "CS",
+          "conversionFactor": 12,
+          "netValue": 184320.0
+        }
+      ],
+      "credit": {
+        "creditStatus": "B",
+        "exposure": 184320.0,
+        "creditLimit": 150000.0,
+        "lastReviewDate": "2026-05-30"
+      },
+      "holds": [],
+      "meta": {
+        "source": "replica",
+        "replicationLagSeconds": 934,
+        "retrievedAt": "2026-08-14T07:11:02Z"
+      }
+    },
+    "isError": false
+  }
+}

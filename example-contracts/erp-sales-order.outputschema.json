@@ -1,0 +1,170 @@
+{
+  "type": "object",
+  "description": "An SAP SD sales order document. Field descriptions state what each field means; they do not describe the state of any particular order.",
+  "required": ["header", "schedule", "items", "credit", "holds", "meta"],
+  "properties": {
+    "header": {
+      "type": "object",
+      "required": ["salesOrderId", "customerId", "documentCurrency", "orderStatus"],
+      "properties": {
+        "salesOrderId": {
+          "type": "string",
+          "description": "SAP sales document number, zero-padded to 10 characters."
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Sold-to party number."
+        },
+        "customerName": {
+          "type": "string",
+          "description": "Sold-to party name."
+        },
+        "documentCurrency": {
+          "type": "string",
+          "description": "ISO 4217 currency of every monetary amount in this document, including netValue, exposure and creditLimit."
+        },
+        "exchangeRate": {
+          "type": "number",
+          "description": "Rate from documentCurrency to company code currency, fixed at order creation. Amounts in this document are already in documentCurrency and must not be multiplied by it."
+        },
+        "deliveryBlock": {
+          "description": "Delivery block reason code as a string, or null when no block is set. While a block is set, no delivery document will be created for this order regardless of stock availability, confirmed dates or credit status. Removing a block is a manual action by the responsible team.",
+          "examples": ["Z3", null]
+        },
+        "orderStatus": {
+          "type": "string",
+          "description": "Overall processing status. A = open, B = in process, C = completed. This reflects document processing only and says nothing about whether goods have shipped.",
+          "enum": ["A", "B", "C"]
+        }
+      }
+    },
+    "schedule": {
+      "type": "object",
+      "properties": {
+        "requestedDeliveryDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Date the customer asked for. An input to scheduling, never a commitment."
+        },
+        "confirmedDeliveryDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Delivery date confirmed by availability check at order creation. This value is frozen: it is not recalculated when a delivery block is applied, when credit is blocked, or when material availability moves. It is only a reliable expectation when nothing is blocking the order."
+        },
+        "materialAvailabilityDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Date the material is expected to be available to pick. Later than confirmedDeliveryDate means the confirmation is no longer achievable."
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "description": "Order line items.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "itemNumber": {
+            "type": "string",
+            "description": "Line item number within the order."
+          },
+          "material": {
+            "type": "string",
+            "description": "Material master number."
+          },
+          "description": {
+            "type": "string",
+            "description": "Material description."
+          },
+          "orderQuantity": {
+            "type": "number",
+            "description": "Quantity ordered, expressed in uom (the base unit), not in salesUom."
+          },
+          "deliveredQuantity": {
+            "type": "number",
+            "description": "Quantity on delivery documents, expressed in uom. This counts stock staged and assigned to a delivery. It does NOT mean the goods have left the warehouse; a delivery document exists from the moment picking begins. Shipment is measured by goodsIssuedQuantity alone."
+          },
+          "goodsIssuedQuantity": {
+            "type": "number",
+            "description": "Quantity for which goods issue has posted, expressed in uom. This is the only field that means stock physically left the warehouse and ownership transferred. Zero means nothing has shipped, however large deliveredQuantity is."
+          },
+          "uom": {
+            "type": "string",
+            "description": "Base unit of measure. Every quantity field on this item is expressed in this unit."
+          },
+          "salesUom": {
+            "type": "string",
+            "description": "Unit the customer orders and is invoiced in. When this differs from uom, quantities in this document are NOT in the unit the customer recognises and must be divided by conversionFactor before being quoted to them."
+          },
+          "conversionFactor": {
+            "type": "number",
+            "description": "Number of base units (uom) per sales unit (salesUom)."
+          },
+          "netValue": {
+            "type": "number",
+            "description": "Net line value in documentCurrency, excluding tax."
+          }
+        }
+      }
+    },
+    "credit": {
+      "type": "object",
+      "properties": {
+        "creditStatus": {
+          "type": "string",
+          "description": "Credit check result. A = approved, B = blocked, D = not performed. B means the order is held by finance and will not release to delivery until credit is cleared.",
+          "enum": ["A", "B", "D"]
+        },
+        "exposure": {
+          "type": "number",
+          "description": "Total open receivables plus open orders for this customer, in documentCurrency."
+        },
+        "creditLimit": {
+          "type": "number",
+          "description": "Approved credit limit for this customer, in documentCurrency. Exposure above this limit is what triggers a credit block."
+        },
+        "lastReviewDate": {
+          "type": "string",
+          "format": "date",
+          "description": "Date the credit limit was last reviewed."
+        }
+      }
+    },
+    "holds": {
+      "type": "array",
+      "description": "Hold records visible to the calling role. This array is filtered by the caller's authorisation: an empty array means no hold is visible to you, NOT that the order is free of holds. It cannot be used to prove absence.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Hold category, such as credit, export or quality."
+          },
+          "blocking": {
+            "type": "boolean",
+            "description": "Whether this hold prevents the order from progressing."
+          }
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Where this document was read from. `primary` is the system of record; `replica` is an asynchronously updated copy.",
+          "enum": ["primary", "replica"]
+        },
+        "replicationLagSeconds": {
+          "type": "number",
+          "description": "How far behind the system of record this read was, in seconds. Zero on a primary read. Any value above zero means every field in this document is a point-in-time copy that may have since changed."
+        },
+        "retrievedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this document was read, in UTC."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "0080067890": {
+    "header": {
+      "deliveryId": "0080067890",
+      "deliveryType": "LF",
+      "salesOrderId": "0000004711",
+      "plant": "1042",
+      "shipToParty": "C-10014",
+      "shipToName": "Nordwerk Maschinenbau GmbH",
+      "shipToCountry": "DE",
+      "incoterms": "DAP",
+      "createdOn": "2026-07-28",
+      "documentCurrency": "EUR"
+    },
+    "items": [
+      {
+        "itemNumber": "10",
+        "material": "MAT-88120",
+        "description": "Hydraulic manifold block, 4-port",
+        "batchNumber": "B-6604-2026",
+        "quantity": 120,
+        "uom": "EA",
+        "netValue": 18450.0
+      },
+      {
+        "itemNumber": "20",
+        "material": "MAT-88135",
+        "description": "Seal kit, NBR, 40 mm",
+        "batchNumber": "B-7741-2026",
+        "quantity": 168,
+        "uom": "EA",
+        "netValue": 24880.0
+      }
+    ],
+    "status": {
+      "pickingStatus": "C",
+      "goodsIssued": true,
+      "goodsIssuedDate": "2026-08-16",
+      "podRequired": true,
+      "podReceived": false,
+      "billingStatus": "A"
+    },
+    "shipping": {
+      "carrier": "EXP-DE",
+      "carrierName": "ExpressLog Deutschland GmbH",
+      "serviceLevel": "EXPRESS",
+      "trackingNumber": "EXPDE-4417820934",
+      "dispatchDate": "2026-08-16",
+      "estimatedArrival": "2026-08-19",
+      "route": "DE-NORTH-01"
+    },
+    "exportControl": {
+      "eccn": null,
+      "licenseNumber": null,
+      "destinationCountry": "DE"
+    },
+    "meta": {
+      "source": "primary",
+      "retrievedAt": "2026-08-17T09:14:22Z"
+    }
+  },
+  "0080012345": {
+    "header": {
+      "deliveryId": "0080012345",
+      "deliveryType": "LF",
+      "salesOrderId": "0000005120",
+      "plant": "2000",
+      "shipToParty": "C-10014",
+      "shipToName": "Nordwerk Maschinenbau GmbH",
+      "shipToCountry": "DE",
+      "incoterms": "EXW",
+      "createdOn": "2026-08-10",
+      "documentCurrency": "EUR"
+    },
+    "items": [
+      {
+        "itemNumber": "10",
+        "material": "MAT-90010",
+        "description": "Bearing housing, cast iron",
+        "batchNumber": "B-9001-2026",
+        "quantity": 60,
+        "uom": "EA",
+        "netValue": 7320.0
+      }
+    ],
+    "status": {
+      "pickingStatus": "C",
+      "goodsIssued": true,
+      "goodsIssuedDate": "2026-08-12",
+      "podRequired": false,
+      "podReceived": true,
+      "billingStatus": "C"
+    },
+    "shipping": {
+      "carrier": "STD-EU",
+      "carrierName": "Continental Freight BV",
+      "serviceLevel": "STANDARD",
+      "trackingNumber": "STDEU-9920144870",
+      "dispatchDate": "2026-08-12",
+      "estimatedArrival": "2026-08-15",
+      "route": "DE-SOUTH-04"
+    },
+    "exportControl": {
+      "eccn": null,
+      "licenseNumber": null,
+      "destinationCountry": "DE"
+    },
+    "meta": {
+      "source": "primary",
+      "retrievedAt": "2026-08-17T09:15:02Z"
+    }
+  },
+  "0080055512": {
+    "header": {
+      "deliveryId": "0080055512",
+      "deliveryType": "LF",
+      "salesOrderId": "0000005088",
+      "plant": "2000",
+      "shipToParty": "C-10029",
+      "shipToName": "Sunda Precision Pte Ltd",
+      "shipToCountry": "SG",
+      "incoterms": "CIP",
+      "createdOn": "2026-08-11",
+      "documentCurrency": "EUR"
+    },
+    "items": [
+      {
+        "itemNumber": "10",
+        "material": "MAT-77400",
+        "description": "Servo controller, 3-axis",
+        "batchNumber": "B-8802-2026",
+        "quantity": 24,
+        "uom": "EA",
+        "netValue": 41600.0
+      }
+    ],
+    "status": {
+      "pickingStatus": "C",
+      "goodsIssued": false,
+      "goodsIssuedDate": null,
+      "podRequired": true,
+      "podReceived": false,
+      "billingStatus": "A"
+    },
+    "shipping": {
+      "carrier": "STD-EU",
+      "carrierName": "Continental Freight BV",
+      "serviceLevel": "STANDARD",
+      "trackingNumber": "STDEU-9920177301",
+      "dispatchDate": null,
+      "estimatedArrival": "2026-08-26",
+      "route": "EU-APAC-11"
+    },
+    "exportControl": {
+      "eccn": "5A992.c",
+      "licenseNumber": null,
+      "destinationCountry": "SG"
+    },
+    "meta": {
+      "source": "primary",
+      "retrievedAt": "2026-08-17T09:15:40Z"
+    }
+  }
+}

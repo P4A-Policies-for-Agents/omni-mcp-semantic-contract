@@ -1,0 +1,192 @@
+{
+  "type": "object",
+  "description": "An SAP SD outbound delivery document. Field descriptions state what each field means for every delivery this tool can return. They deliberately say nothing about the state of the world the delivery is moving through — recalls, carrier incidents, licence holds and engineering changes live in other systems and change daily, so no description written here could stay true.",
+  "required": ["header", "items", "status", "shipping", "exportControl", "meta"],
+  "properties": {
+    "header": {
+      "type": "object",
+      "required": ["deliveryId", "plant", "shipToParty", "incoterms", "createdOn"],
+      "properties": {
+        "deliveryId": {
+          "type": "string",
+          "description": "SAP outbound delivery number, zero-padded to 10 characters."
+        },
+        "deliveryType": {
+          "type": "string",
+          "description": "Delivery document type. LF = standard outbound delivery, NL = stock transfer, RL = returns."
+        },
+        "salesOrderId": {
+          "type": "string",
+          "description": "Sales order this delivery was created from."
+        },
+        "plant": {
+          "type": "string",
+          "description": "Plant that ships the goods. Determines which pricing, scheduling and warehouse configuration applied when the document was created."
+        },
+        "shipToParty": {
+          "type": "string",
+          "description": "Ship-to party number."
+        },
+        "shipToName": {
+          "type": "string",
+          "description": "Ship-to party name."
+        },
+        "shipToCountry": {
+          "type": "string",
+          "description": "ISO 3166-1 alpha-2 country of the ship-to address."
+        },
+        "incoterms": {
+          "type": "string",
+          "description": "Delivery terms agreed with the customer. EXW = ex works, risk passes at the plant gate. DAP = delivered at place, risk stays with us until the goods reach the named destination. CIP = carriage and insurance paid to the named place.",
+          "enum": ["EXW", "DAP", "CIP"]
+        },
+        "createdOn": {
+          "type": "string",
+          "format": "date",
+          "description": "Date the delivery document was created. Determines which configuration the document was priced and scheduled under; the document is not recalculated when that configuration later changes."
+        },
+        "documentCurrency": {
+          "type": "string",
+          "description": "ISO 4217 currency of every monetary amount in this document."
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "description": "Delivery line items. Each line draws stock from exactly one batch.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "itemNumber": {
+            "type": "string",
+            "description": "Line item number within the delivery."
+          },
+          "material": {
+            "type": "string",
+            "description": "Material master number of the goods on this line."
+          },
+          "description": {
+            "type": "string",
+            "description": "Material description."
+          },
+          "batchNumber": {
+            "type": "string",
+            "description": "Batch the stock on this line was picked from. Identifies a specific production lot. The ERP treats this as an opaque key: batch quality status, release and recall are held in the quality management system and are not represented anywhere in this document."
+          },
+          "quantity": {
+            "type": "number",
+            "description": "Quantity on this delivery line, expressed in uom."
+          },
+          "uom": {
+            "type": "string",
+            "description": "Unit of measure for quantity on this line."
+          },
+          "netValue": {
+            "type": "number",
+            "description": "Net line value in documentCurrency, excluding tax, as priced when the document was created."
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "object",
+      "description": "Processing status of the delivery document.",
+      "properties": {
+        "pickingStatus": {
+          "type": "string",
+          "description": "Picking progress. A = not started, B = partial, C = fully picked.",
+          "enum": ["A", "B", "C"]
+        },
+        "goodsIssued": {
+          "type": "boolean",
+          "description": "Whether goods issue has posted. True means the stock has left the warehouse and left our books. It says nothing about whether the goods reached the customer."
+        },
+        "goodsIssuedDate": {
+          "description": "Date goods issue posted, as a date string, or null when it has not posted.",
+          "examples": ["2026-08-16", null]
+        },
+        "podRequired": {
+          "type": "boolean",
+          "description": "Whether this delivery requires a confirmed proof of delivery before it can be billed. Driven by the incoterms and the customer's agreement."
+        },
+        "podReceived": {
+          "type": "boolean",
+          "description": "Whether a proof of delivery has been recorded against this delivery. While podRequired is true and this is false, the delivery is not complete: the goods are in transit or their arrival is unconfirmed, and under DAP or CIP terms risk has not passed to the customer."
+        },
+        "billingStatus": {
+          "type": "string",
+          "description": "Billing progress. A = not billed, B = partially billed, C = fully billed.",
+          "enum": ["A", "B", "C"]
+        }
+      }
+    },
+    "shipping": {
+      "type": "object",
+      "description": "Carrier and routing assigned to this delivery.",
+      "properties": {
+        "carrier": {
+          "type": "string",
+          "description": "Carrier account code assigned to this shipment."
+        },
+        "carrierName": {
+          "type": "string",
+          "description": "Carrier name."
+        },
+        "serviceLevel": {
+          "type": "string",
+          "description": "Service booked with the carrier.",
+          "enum": ["STANDARD", "EXPRESS", "ECONOMY"]
+        },
+        "trackingNumber": {
+          "type": "string",
+          "description": "Carrier tracking reference. Present from the moment the shipment is booked, whether or not the carrier has collected it."
+        },
+        "dispatchDate": {
+          "description": "Date the shipment was handed to the carrier, as a date string, or null when the carrier has not collected it yet.",
+          "examples": ["2026-08-16", null]
+        },
+        "estimatedArrival": {
+          "description": "Expected arrival date, as a date string, or null when no estimate exists. Computed once when the shipment is booked, by adding the carrier's contracted transit time for this route to dispatchDate. It is a calculation from a rate table, not a confirmation from the carrier, and it is not recalculated afterwards.",
+          "examples": ["2026-08-19", null]
+        },
+        "route": {
+          "type": "string",
+          "description": "Internal route code used to select the carrier and transit time."
+        }
+      }
+    },
+    "exportControl": {
+      "type": "object",
+      "description": "Export control classification of the goods on this delivery.",
+      "properties": {
+        "eccn": {
+          "description": "Export Control Classification Number of the goods, as a string, or null when the goods are not export controlled.",
+          "examples": ["5A992.c", null]
+        },
+        "licenseNumber": {
+          "description": "Export licence recorded against this delivery, as a string, or null when none is recorded. Null on a controlled line means no licence has been captured in the ERP.",
+          "examples": ["DE-BAFA-2026-11884", null]
+        },
+        "destinationCountry": {
+          "type": "string",
+          "description": "ISO 3166-1 alpha-2 country the goods are being exported to."
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "Where this document was read from. `primary` is the system of record.",
+          "enum": ["primary", "replica"]
+        },
+        "retrievedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this document was read, in UTC."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+# Copyright 2026 Salesforce, Inc. All rights reserved.
+---
+services:
+  local-flex:
+    image: mulesoft/flex-gateway:1.10.0
+    ports:
+      - 8081:8081
+    volumes:
+      - ./config:/usr/local/share/mulesoft/flex-gateway/conf.d/
+    depends_on:
+      - backend
+
+  # Collapses the A2D mock's single-frame SSE responses into application/json.
+  # Demo shim only; see playground/upstream/bridge.py.
+  backend:
+    image: python:3.12-slim
+    environment:
+      MCP_UPSTREAM_URL: ${MCP_UPSTREAM_URL:?set MCP_UPSTREAM_URL to the A2D mock endpoint}
+      MCP_API_KEY: ${MCP_API_KEY:?set MCP_API_KEY to the A2D API key}
+    volumes:
+      - ./upstream:/srv:ro
+    command: ["python", "/srv/bridge.py"]

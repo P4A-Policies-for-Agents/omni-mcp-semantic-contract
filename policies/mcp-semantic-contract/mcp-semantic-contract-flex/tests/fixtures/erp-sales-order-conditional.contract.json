@@ -1,0 +1,45 @@
+{
+  "semanticContractVersion": "1.0",
+  "contractId": "erp-sales-order",
+  "version": "4.0.0",
+  "description": "Conditional interpretation rules for SAP SD sales order documents. Static field meaning lives in the tool's outputSchema (erp-sales-order.outputschema.json) and is deliberately not repeated here: every rule below asserts something about the specific payload in hand that no field description could state, because it depends on the values two or more fields happen to hold. Rules removed in 4.0.0 — uom-external and delivery-block-active — are fully covered by the schema.",
+  "owner": "erp-platform",
+  "toolMapping": ["get_sales_order"],
+  "rules": [
+    {
+      "id": "shipped-means-goods-issued",
+      "severity": "critical",
+      "when": "payload.items[0].deliveredQuantity > 0 and payload.items[0].goodsIssuedQuantity == 0",
+      "guidance": "Nothing on this order has shipped. A line is fully staged for delivery but goods issue has not posted against it. Do not tell the customer these units have left the warehouse or are on their way.",
+      "reference": "ERP-SD-0873"
+    },
+    {
+      "id": "confirmed-date-stale",
+      "severity": "warn",
+      "when": "payload.header.deliveryBlock != null and exists(payload.schedule.confirmedDeliveryDate)",
+      "guidance": "The confirmed delivery date on this order is stale: a delivery block is active and the confirmation was not rescheduled when it was applied. Do not quote it as the expected delivery date.",
+      "reference": "ERP-SD-0911"
+    },
+    {
+      "id": "credit-blocked-over-limit",
+      "severity": "critical",
+      "when": "payload.credit.creditStatus == \"B\" and payload.credit.exposure > payload.credit.creditLimit",
+      "guidance": "This order is credit-blocked because the customer's exposure exceeds their credit limit. That is the root cause of any delay on it, and it will not release until finance clears the credit.",
+      "reference": "ERP-FI-0455"
+    },
+    {
+      "id": "holds-role-filtered",
+      "severity": "warn",
+      "when": "sizeOf(payload.holds) == 0 and payload.header.deliveryBlock != null",
+      "guidance": "The holds array is empty but a delivery block is active, so at least one hold record exists that this caller's role cannot see. Do not state that the order is free of holds.",
+      "reference": "ERP-SD-1207"
+    },
+    {
+      "id": "replica-stale",
+      "severity": "critical",
+      "when": "payload.meta.replicationLagSeconds > 300",
+      "guidance": "This document was read from a replica lagging more than five minutes behind the system of record. Do not quote its credit, pricing or quantity figures to a customer as authoritative.",
+      "reference": "ERP-OPS-0021"
+    }
+  ]
+}

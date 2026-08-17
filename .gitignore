@@ -1,0 +1,14 @@
+target
+
+# Local demo configs holding real Exchange connected-app credentials.
+# Copy demo/config-*.json to demo/config-*.local.json and fill in creds.
+demo/*.local.json
+
+playground/config/custom-policies/*
+!playground/config/custom-policies/note.txt
+.pdk
+registration.yaml
+certificate.yaml
+policy-config.json
+opus5-build-spec-semantic-contract.md
+p4a-idea-mcp-semantic-contract.md
