@@ -6,13 +6,10 @@ metadata:
     title: MCP Semantic Contract
     category: MCP
     description: >-
-      Tells an AI agent what is true about an MCP tools/call result right now:
-      a recalled batch, a suspended carrier service, a licence hold. These are
-      facts the tool's outputSchema cannot state, because other teams own them
-      and they change on a different clock than the API. Not schema validation
-      and not contract testing: nothing is blocked, and the payload is returned
-      unmodified. Rules are evaluated deterministically at the gateway, with no
-      LLM in the data path.
+      Tells an agent what is true about an MCP tools/call result right now: a
+      recalled batch, a suspended carrier, a licence hold. Facts the
+      outputSchema cannot state. Not validation: nothing is blocked, the
+      payload is unmodified, no LLM in the path.
     metadata/interfaceScope: api
     metadata/capabilities/assetTypes: mcp
 spec:
