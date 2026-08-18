@@ -189,6 +189,6 @@ editing a rule and re-running `deploy.sh` is the entire change cycle.
 
 ## Status
 
-Implementation `1.3.0`, definition `1.1.0`, built on PDK 1.9. Deployed and verified
+Implementation `1.3.1`, definition `1.1.1`, built on PDK 1.9. Deployed and verified
 on a managed Omni Gateway against a live MCP server, including fail-closed
 behaviour on a deliberately wrong integrity pin.

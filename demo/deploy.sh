@@ -13,7 +13,7 @@ API_ID="${API_ID:-21100028}"
 ENVIRONMENT="${ENVIRONMENT:-Sandbox}"
 GROUP_ID="${GROUP_ID:-82a0453b-22e6-430d-bbf4-35b989d043dc}"
 POLICY_ASSET="${POLICY_ASSET:-mcp-semantic-contract}"
-POLICY_VERSION="${POLICY_VERSION:-1.1.0}"
+POLICY_VERSION="${POLICY_VERSION:-1.1.1}"
 GATEWAY_URL="${GATEWAY_URL:-https://omni-gateway-shared-space-zovwbn.5sc6y6-1.usa-e2.cloudhub.io/erp_sales_order_mcp/mcp}"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
