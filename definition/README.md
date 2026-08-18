@@ -32,7 +32,7 @@ The `make release` goal also publishes the policy definition to Anypoint Exchang
 *For more information about releasing policies, see [Uploading Custom Policies to Exchange](https://docs.mulesoft.com/pdk/latest/policies-pdk-publish-policies).*
 
 ### Release Local
-The `make release-local` goal publishes the policy definition as a release asset to the local Anypoint Exchange cache, you'll be able to override it. This target is useful if you are also developing the policy implementation. 
+The `make publish-local` goal publishes the policy definition as a release asset to the local Anypoint Exchange cache, you'll be able to override it. This target is useful if you are also developing the policy implementation. 
 
 *For more information about releasing policies, see [Uploading Custom Policies to Exchange](https://docs.mulesoft.com/pdk/latest/policies-pdk-publish-policies).*
 

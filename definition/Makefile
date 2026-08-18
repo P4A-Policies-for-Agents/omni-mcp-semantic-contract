@@ -10,9 +10,12 @@ publish: build ## Publish definition to exchange as -DEV asset
 release: build ## Publish definition to exchange
 	@anypoint-cli-v4 pdk policy-definition publish
 
-.PHONY: release-local
-release-local: build ## Publish definition to local fs
+.PHONY: publish-local
+publish-local: build ## Publish definition to local fs
 	@anypoint-cli-v4 pdk policy-definition publish-local
+
+.PHONY: release-local
+release-local: publish-local ## Deprecated alias for publish-local
 
 ifneq ($(OS), Windows_NT)
 all: help

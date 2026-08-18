@@ -24,10 +24,14 @@ setup: install-cargo-anypoint install-llvm-cov ## Setup Cargo Anypoint to build,
 .PHONY: build-asset-files
 build-asset-files:  ## Retrieves the definition from exchange
 	@anypoint-cli-v4 pdk fetch-policy --gav=$(DEFINITION_GAV)
-# Generate against gcl_src.yaml, not the published gcl.yaml: the definition
-# build strips `format: service`, and without it config-gen emits a String for
+
+.PHONY: config-gen
+config-gen: ## (manual) Regenerate src/generated/config.rs from the definition source
+# Read the definition source, not the published gcl.yaml: publishing strips
+# `format: service`, and without it config-gen emits a String for
 # remoteContractUrl and no abi.service_create call, so the fetch has no cluster.
-	@cargo anypoint config-gen -p -m ../definition/target/definition/gcl_src.yaml -o ./src/generated/config.rs
+# The result is committed, so a release build never needs the definition tree.
+	@cargo anypoint config-gen -p -m ../definition/gcl.yaml -o ./src/generated/config.rs
 
 .PHONY: build
 build: ## Builds the policy implementation
