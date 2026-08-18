@@ -66,7 +66,7 @@ The second row is the sharpest result: the agent identified the compliance probl
 correctly and then disclosed the controlled shipment's routing anyway, because "do
 not disclose" is an obligation, not a field meaning.
 
-![The erp-delivery contract](../assets/delivery-rules-map.png)
+![The erp-delivery contract](https://raw.githubusercontent.com/P4A-Policies-for-Agents/omni-mcp-semantic-contract/main/assets/delivery-rules-map.png)
 
 ## Security
 
@@ -78,8 +78,9 @@ Fetched contracts are hash-pinned and fail closed on mismatch.
 
 ## Where to go next
 
-- [Repository README](../README.md) — purpose, business benefits and use cases
-- [Implementation README](../implementation/README.md) — rule grammar, delivery
-  channels, security model, configuration and the full demo
-- [Example contracts](../example-contracts/README.md) — worked contracts and the
-  matching tool output schemas
+- [Repository README](https://github.com/P4A-Policies-for-Agents/omni-mcp-semantic-contract/blob/main/README.md)
+  — purpose, business benefits and use cases
+- [Implementation README](https://github.com/P4A-Policies-for-Agents/omni-mcp-semantic-contract/blob/main/implementation/README.md)
+  — rule grammar, delivery channels, security model, configuration and the full demo
+- [Example contracts](https://github.com/P4A-Policies-for-Agents/omni-mcp-semantic-contract/blob/main/example-contracts/README.md)
+  — worked contracts and the matching tool output schemas
