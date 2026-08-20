@@ -260,17 +260,20 @@ or      := and ( "or" and )*
 and     := cmp ( "and" cmp )*
 cmp     := operand ( ("==" | "!=" | ">" | "<" | ">=" | "<=") operand )?
 operand := path | literal | "sizeOf" "(" path ")" | "exists" "(" path ")"
-path    := "payload" ( "." field | "[" integer "]" )*
+         | "matches" "(" path "," string ")"
+path    := "payload" ( "." field | "[" integer "]" | "[*]" )*
 literal := string | number | "true" | "false" | "null"
 ```
 
 | Element | Notes |
 |---|---|
-| Paths | `payload.header.plant`, `payload.items[0].batchNumber`. Object keys and integer indices only. |
+| Paths | `payload.header.plant`, `payload.items[0].batchNumber`. Object keys, integer indices and `[*]`. |
+| `[*]` | Every element of an array. Every operator over it is **existential**: the term is true if *any* element satisfies it. |
 | `==` `!=` | Structural equality against any type. Numbers compare by value, so `1` equals `1.0`. |
 | `>` `<` `>=` `<=` | Defined for number/number and string/string only. Strings compare lexicographically. |
-| `sizeOf(path)` | Array length. `0` for anything that is not an array, missing included. |
+| `sizeOf(path)` | Array length. `0` for anything that is not an array, missing included. Rejects a `[*]` path. |
 | `exists(path)` | True when the path resolves to a non-`null` value. |
+| `matches(path, "re")` | True when any resolved value is a string matching the pattern. Unanchored — use `^` and `$` when you mean the whole value. |
 | `and` `or` | `and` binds tighter. **No parentheses.** |
 | Bare operand | A condition with no operator is true only for literal boolean `true`. Truthy strings and non-zero numbers are false. |
 
@@ -290,6 +293,8 @@ down the response path with a bad rule:
 | Ordering against `null` | `false` |
 | `sizeOf` of a non-array | `0` |
 | `exists` of `null` or missing | `false` |
+| `[*]` over an empty array, a non-array or a missing path | designates nothing, so the term is `false` |
+| `matches` against a non-string, `null` or missing | `false` |
 | Non-boolean as a bare condition | `false` |
 
 The cost of totality is that a typo is silent. `payload.header.plnt == "1042"`
@@ -338,18 +343,31 @@ This is how a migration cutover or a policy start date is expressed.
 payload.header.plant == "1042" and payload.header.createdOn < "2026-08-01"
 ```
 
-**Set membership, spelled out.** There is no `in` operator and no way to iterate
-an array, so a value that may appear on any line has to be checked per index.
+**A value that may appear on any line.** `[*]` quantifies over the array, so one
+term covers a document with three lines as well as one with two.
 
 ```
-payload.items[0].batchNumber == "B-7741-2026" or payload.items[1].batchNumber == "B-7741-2026"
+payload.items[*].material == "MAT-88120"
 ```
 
-This is the dialect's sharpest limitation. It is bounded and explicit rather
-than clever, which is deliberate — but it does mean a rule written for two lines
-silently misses a third. Where the check matters, cover more indices than the
-documents you have seen, and remember that a missing index resolves to `null`
-and compares false rather than erroring.
+Note that this is existential, which makes `!=` read differently from how it
+looks. `payload.items[*].material != "MAT-88120"` is true when *some* line is a
+different material, not when every line is — there is no universal quantifier.
+Where you mean "no line is", invert the rule instead of the operator.
+
+**A family of identifiers.** Recalls, ECCN groups, plant ranges and document
+number series are rarely a single literal. `matches` takes a regular expression,
+so a rule can name the series rather than one member of it.
+
+```
+matches(payload.items[*].batchNumber, "^B-7741-")
+```
+
+That covers every batch in the recalled series, on every line, without the
+contract being re-authored each time Quality adds one. Patterns are compiled
+once at contract load and a bad one disables only its own rule; the engine is
+finite-automata based, so match time stays linear in the value being matched
+and no pattern can stall the response path.
 
 ### The precedence trap
 

@@ -8,8 +8,9 @@
 //! expr       := comparison (('and' | 'or') comparison)*
 //! comparison := operand (op operand)?
 //! operand    := path | literal | call
-//! path       := 'payload' ('.' ident | '[' int ']')*
+//! path       := 'payload' ('.' ident | '[' int ']' | '[*]')*
 //! call       := ('sizeOf' | 'exists') '(' path ')'
+//!             | 'matches' '(' path ',' string ')'
 //! op         := '==' | '!=' | '>' | '<' | '>=' | '<='
 //! literal    := string | number | 'true' | 'false' | 'null'
 //! ```
@@ -17,15 +18,57 @@
 //! Expressions are parsed once, at contract load time, into an [`Expr`] and
 //! evaluated per request. Evaluation is total: it returns `bool`, never an
 //! error. Anything the grammar cannot express is rejected at parse time.
+//!
+//! A `[*]` segment makes the path resolve to every element of the array rather
+//! than one, and every operator over it is existential: the comparison holds if
+//! *any* resolved value satisfies it. That is what lets one rule cover a whole
+//! delivery instead of naming `items[0]` and `items[1]` and missing the third.
+//! `sizeOf` is the exception and rejects a wildcard, because the count of a set
+//! of arrays has no single sensible answer.
+//!
+//! `matches` is unanchored, so `"B-7741-"` hits anywhere in the subject; anchor
+//! it with `^`/`$` when that matters. Non-string values never match.
 
+use regex::{Regex, RegexBuilder};
 use serde_json::Value;
 use std::fmt;
 
-/// A path segment: an object key or an array index.
+/// A compiled pattern that keeps its source, so an [`Expr`] stays comparable
+/// and printable. Two patterns are equal when they were written the same way.
+#[derive(Debug, Clone)]
+pub struct Pattern {
+    src: String,
+    re: Regex,
+}
+
+impl PartialEq for Pattern {
+    fn eq(&self, other: &Self) -> bool {
+        self.src == other.src
+    }
+}
+
+/// Caps the compiled program. A contract author cannot hand the gateway a
+/// pattern that costs megabytes to hold.
+const PATTERN_SIZE_LIMIT: usize = 64 * 1024;
+
+impl Pattern {
+    fn compile(src: &str) -> Result<Self, ParseError> {
+        match RegexBuilder::new(src).size_limit(PATTERN_SIZE_LIMIT).build() {
+            Ok(re) => Ok(Pattern {
+                src: src.to_string(),
+                re,
+            }),
+            Err(e) => err(format!("invalid pattern `{}`: {}", src, e)),
+        }
+    }
+}
+
+/// A path segment: an object key, an array index, or every element of an array.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Seg {
     Key(String),
     Index(usize),
+    Wildcard,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,6 +89,8 @@ pub enum Operand {
     SizeOf(Vec<Seg>),
     /// `exists(path)`.
     Exists(Vec<Seg>),
+    /// `matches(path, "pattern")`.
+    Matches { path: Vec<Seg>, pattern: Pattern },
     /// A literal value.
     Lit(Value),
 }
@@ -88,6 +133,8 @@ enum Tok {
     Str(String),
     Num(f64),
     Dot,
+    Comma,
+    Star,
     LBracket,
     RBracket,
     LParen,
@@ -111,6 +158,14 @@ fn tokenize(src: &str) -> Result<Vec<Tok>, ParseError> {
         match c {
             '.' => {
                 out.push(Tok::Dot);
+                i += 1;
+            }
+            ',' => {
+                out.push(Tok::Comma);
+                i += 1;
+            }
+            '*' => {
+                out.push(Tok::Star);
                 i += 1;
             }
             '[' => {
@@ -325,20 +380,37 @@ impl Parser {
                 "null" => Ok(Operand::Lit(Value::Null)),
                 "payload" => Ok(Operand::Path(self.parse_path_tail()?)),
                 "sizeOf" | "exists" => {
-                    if self.next() != Some(Tok::LParen) {
-                        return err(format!("`{}` must be followed by `(`", id));
-                    }
-                    if !matches!(self.next(), Some(Tok::Ident(ref p)) if p == "payload") {
-                        return err(format!("`{}(...)` takes a path rooted at `payload`", id));
-                    }
-                    let path = self.parse_path_tail()?;
+                    let path = self.parse_call_path(&id)?;
                     if self.next() != Some(Tok::RParen) {
                         return err(format!("unterminated `{}(` call", id));
                     }
-                    Ok(if id == "sizeOf" {
-                        Operand::SizeOf(path)
+                    if id == "sizeOf" {
+                        if path.contains(&Seg::Wildcard) {
+                            return err(
+                                "`sizeOf` does not accept a `[*]` path: the size of many arrays \
+                                 is ambiguous, index the one you mean",
+                            );
+                        }
+                        Ok(Operand::SizeOf(path))
                     } else {
-                        Operand::Exists(path)
+                        Ok(Operand::Exists(path))
+                    }
+                }
+                "matches" => {
+                    let path = self.parse_call_path(&id)?;
+                    if self.next() != Some(Tok::Comma) {
+                        return err("`matches(path, \"pattern\")` needs a `,` before the pattern");
+                    }
+                    let src = match self.next() {
+                        Some(Tok::Str(s)) => s,
+                        _ => return err("the second argument to `matches` must be a string literal"),
+                    };
+                    if self.next() != Some(Tok::RParen) {
+                        return err("unterminated `matches(` call");
+                    }
+                    Ok(Operand::Matches {
+                        path,
+                        pattern: Pattern::compile(&src)?,
                     })
                 }
                 "and" | "or" => err(format!("`{}` where an operand was expected", id)),
@@ -354,8 +426,20 @@ impl Parser {
         }
     }
 
-    /// Parses the `('.' ident | '[' int ']')*` tail of a path, `payload`
-    /// having already been consumed.
+    /// Consumes `'(' 'payload'` for a call and returns the path that follows,
+    /// leaving the closing `)` or a `,` for the caller.
+    fn parse_call_path(&mut self, id: &str) -> Result<Vec<Seg>, ParseError> {
+        if self.next() != Some(Tok::LParen) {
+            return err(format!("`{}` must be followed by `(`", id));
+        }
+        if !matches!(self.next(), Some(Tok::Ident(ref p)) if p == "payload") {
+            return err(format!("`{}(...)` takes a path rooted at `payload`", id));
+        }
+        self.parse_path_tail()
+    }
+
+    /// Parses the `('.' ident | '[' int ']' | '[*]')*` tail of a path,
+    /// `payload` having already been consumed.
     fn parse_path_tail(&mut self) -> Result<Vec<Seg>, ParseError> {
         let mut segs = Vec::new();
         loop {
@@ -369,14 +453,15 @@ impl Parser {
                 }
                 Some(Tok::LBracket) => {
                     self.pos += 1;
-                    let idx = match self.next() {
-                        Some(Tok::Num(n)) if n >= 0.0 && n.fract() == 0.0 => n as usize,
-                        _ => return err("array index must be a non-negative integer"),
+                    let seg = match self.next() {
+                        Some(Tok::Star) => Seg::Wildcard,
+                        Some(Tok::Num(n)) if n >= 0.0 && n.fract() == 0.0 => Seg::Index(n as usize),
+                        _ => return err("array index must be a non-negative integer or `*`"),
                     };
                     if self.next() != Some(Tok::RBracket) {
                         return err("expected `]` after array index");
                     }
-                    segs.push(Seg::Index(idx));
+                    segs.push(seg);
                 }
                 _ => break,
             }
@@ -406,32 +491,60 @@ pub fn parse(src: &str) -> Result<Expr, ParseError> {
 // Evaluation
 // ---------------------------------------------------------------------------
 
-fn resolve<'a>(payload: &'a Value, path: &[Seg]) -> &'a Value {
-    let mut cur = payload;
-    for seg in path {
-        cur = match seg {
-            Seg::Key(k) => match cur.get(k.as_str()) {
-                Some(v) => v,
-                None => return &Value::Null,
-            },
-            Seg::Index(i) => match cur.get(*i) {
-                Some(v) => v,
-                None => return &Value::Null,
-            },
-        };
+/// Resolves a path to every value it designates. Without a wildcard that is
+/// always exactly one value — `null` when the path is absent, preserving the
+/// "missing is null, never an error" rule. A `[*]` over a non-array designates
+/// nothing, so an existential test over it is simply false.
+fn resolve_all<'a>(cur: &'a Value, path: &[Seg], out: &mut Vec<&'a Value>) {
+    match path.split_first() {
+        None => out.push(cur),
+        Some((Seg::Key(k), rest)) => match cur.get(k.as_str()) {
+            Some(v) => resolve_all(v, rest, out),
+            None => out.push(&Value::Null),
+        },
+        Some((Seg::Index(i), rest)) => match cur.get(*i) {
+            Some(v) => resolve_all(v, rest, out),
+            None => out.push(&Value::Null),
+        },
+        Some((Seg::Wildcard, rest)) => {
+            if let Some(items) = cur.as_array() {
+                for v in items {
+                    resolve_all(v, rest, out);
+                }
+            }
+        }
     }
-    cur
 }
 
-fn eval_operand(op: &Operand, payload: &Value) -> Value {
+fn resolve<'a>(payload: &'a Value, path: &[Seg]) -> Vec<&'a Value> {
+    let mut out = Vec::new();
+    resolve_all(payload, path, &mut out);
+    out
+}
+
+/// Evaluates an operand to the set of values it stands for. Only a path can
+/// yield more than one; the calls fold their own set down to a single answer.
+fn eval_operand(op: &Operand, payload: &Value) -> Vec<Value> {
     match op {
-        Operand::Lit(v) => v.clone(),
-        Operand::Path(p) => resolve(payload, p).clone(),
+        Operand::Lit(v) => vec![v.clone()],
+        Operand::Path(p) => resolve(payload, p).into_iter().cloned().collect(),
         Operand::SizeOf(p) => {
-            let n = resolve(payload, p).as_array().map(|a| a.len()).unwrap_or(0);
-            Value::Number(n.into())
+            let n = resolve(payload, p)
+                .first()
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+                .unwrap_or(0);
+            vec![Value::Number(n.into())]
         }
-        Operand::Exists(p) => Value::Bool(!resolve(payload, p).is_null()),
+        Operand::Exists(p) => vec![Value::Bool(
+            resolve(payload, p).iter().any(|v| !v.is_null()),
+        )],
+        Operand::Matches { path, pattern } => vec![Value::Bool(
+            resolve(payload, path)
+                .iter()
+                .filter_map(|v| v.as_str())
+                .any(|s| pattern.re.is_match(s)),
+        )],
     }
 }
 
@@ -474,15 +587,22 @@ pub fn eval(expr: &Expr, payload: &Value) -> bool {
     match expr {
         Expr::Or(terms) => terms.iter().any(|t| eval(t, payload)),
         Expr::And(terms) => terms.iter().all(|t| eval(t, payload)),
-        Expr::Truthy(op) => matches!(eval_operand(op, payload), Value::Bool(true)),
+        Expr::Truthy(op) => eval_operand(op, payload)
+            .iter()
+            .any(|v| matches!(v, Value::Bool(true))),
+        // Existential on both sides: the comparison holds if any pair of
+        // resolved values satisfies it. Without a wildcard both sets are
+        // singletons and this is an ordinary comparison.
         Expr::Compare { left, op, right } => {
-            let l = eval_operand(left, payload);
-            let r = eval_operand(right, payload);
-            match op {
-                CmpOp::Eq => json_eq(&l, &r),
-                CmpOp::Ne => !json_eq(&l, &r),
-                other => compare_ordered(&l, &r, *other),
-            }
+            let ls = eval_operand(left, payload);
+            let rs = eval_operand(right, payload);
+            ls.iter().any(|l| {
+                rs.iter().any(|r| match op {
+                    CmpOp::Eq => json_eq(l, r),
+                    CmpOp::Ne => !json_eq(l, r),
+                    other => compare_ordered(l, r, *other),
+                })
+            })
         }
     }
 }

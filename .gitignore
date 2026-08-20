@@ -13,3 +13,4 @@ policy-config.json
 opus5-build-spec-semantic-contract.md
 p4a-idea-mcp-semantic-contract.md
 .DS_Store
+__pycache__/

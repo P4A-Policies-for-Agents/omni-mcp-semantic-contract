@@ -21,6 +21,11 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc", "preserve_order"] }
 anyhow = "1.0"
 futures = "0.3"
+# Patterns in `when` expressions. The default features pull in large Unicode
+# tables for a policy that only ever matches ERP identifiers, so take the
+# smallest set that still supports `\d` and `\w`. The engine is finite-automata
+# based, so match time stays linear in the subject regardless of the pattern.
+regex = { version = "1.11", default-features = false, features = ["std", "unicode-perl"] }
 
 [dev-dependencies]
 pdk-test = { version = "1.9.0" }

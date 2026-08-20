@@ -214,6 +214,174 @@ mod calls {
 }
 
 // ---------------------------------------------------------------------------
+// Wildcards
+// ---------------------------------------------------------------------------
+
+/// A delivery with three lines, because the bug this replaced was a rule that
+/// named `items[0]` and `items[1]` and silently ignored the third.
+fn delivery() -> Value {
+    json!({
+        "lines": [
+            { "batch": "B-1200-2026", "material": "MAT-77000", "qty": 40 },
+            { "batch": "B-1201-2026", "material": "MAT-77001", "qty": 12 },
+            { "batch": "B-7741-2026", "material": "MAT-88120", "qty": 120 }
+        ],
+        "empty": [],
+        "notAnArray": "nope",
+        "carrier": "EXP-DE"
+    })
+}
+
+fn ev_on(src: &str, payload: &Value) -> bool {
+    let ast = parse(src).unwrap_or_else(|e| panic!("parse of `{}` failed: {}", src, e));
+    eval(&ast, payload)
+}
+
+mod wildcards {
+    use super::*;
+
+    #[test]
+    fn any_element_satisfies_the_comparison() {
+        assert!(ev_on("payload.lines[*].batch == \"B-1200-2026\"", &delivery()));
+        assert!(!ev_on("payload.lines[*].batch == \"B-9999-2026\"", &delivery()));
+    }
+
+    #[test]
+    fn reaches_past_the_first_two_elements() {
+        // The whole point: this is the line a fixed-index rule would miss.
+        assert!(ev_on("payload.lines[*].material == \"MAT-88120\"", &delivery()));
+    }
+
+    #[test]
+    fn ordering_comparisons_are_existential_too() {
+        assert!(ev_on("payload.lines[*].qty > 100", &delivery()));
+        assert!(!ev_on("payload.lines[*].qty > 500", &delivery()));
+    }
+
+    #[test]
+    fn inequality_is_existential_not_universal() {
+        // True because *some* line differs, not because all of them do.
+        assert!(ev_on("payload.lines[*].batch != \"B-1200-2026\"", &delivery()));
+    }
+
+    #[test]
+    fn wildcard_over_an_empty_array_is_false() {
+        assert!(!ev_on("payload.empty[*] == 1", &delivery()));
+        assert!(!ev_on("payload.empty[*] != 1", &delivery()));
+    }
+
+    #[test]
+    fn wildcard_over_a_non_array_is_false_not_an_error() {
+        assert!(!ev_on("payload.notAnArray[*] == \"nope\"", &delivery()));
+        assert!(!ev_on("payload.missing[*].x == 1", &delivery()));
+    }
+
+    #[test]
+    fn exists_folds_the_set_to_one_answer() {
+        assert!(ev_on("exists(payload.lines[*].batch)", &delivery()));
+        assert!(!ev_on("exists(payload.lines[*].nope)", &delivery()));
+        assert!(!ev_on("exists(payload.empty[*])", &delivery()));
+    }
+
+    #[test]
+    fn composes_with_ordinary_terms() {
+        assert!(ev_on(
+            "payload.carrier == \"EXP-DE\" and payload.lines[*].qty > 100",
+            &delivery()
+        ));
+        assert!(!ev_on(
+            "payload.carrier == \"EXP-FR\" and payload.lines[*].qty > 100",
+            &delivery()
+        ));
+    }
+
+    #[test]
+    fn size_of_rejects_a_wildcard_path() {
+        let msg = parse_err("sizeOf(payload.lines[*]) == 3");
+        assert!(msg.contains("ambiguous"), "got `{}`", msg);
+    }
+
+    #[test]
+    fn a_bare_star_outside_brackets_is_rejected() {
+        assert!(parse("payload.lines * 2 == 1").is_err());
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Patterns
+// ---------------------------------------------------------------------------
+
+mod patterns {
+    use super::*;
+
+    #[test]
+    fn matches_a_batch_series_across_every_line() {
+        assert!(ev_on(
+            "matches(payload.lines[*].batch, \"^B-7741-\")",
+            &delivery()
+        ));
+        assert!(!ev_on(
+            "matches(payload.lines[*].batch, \"^B-8888-\")",
+            &delivery()
+        ));
+    }
+
+    #[test]
+    fn is_unanchored_by_default() {
+        assert!(ev_on("matches(payload.carrier, \"EXP\")", &delivery()));
+        assert!(ev_on("matches(payload.carrier, \"-DE$\")", &delivery()));
+        assert!(!ev_on("matches(payload.carrier, \"^DE\")", &delivery()));
+    }
+
+    #[test]
+    fn character_classes_are_available() {
+        assert!(ev_on(
+            "matches(payload.lines[*].batch, \"^B-7741-20\\\\d\\\\d$\")",
+            &delivery()
+        ));
+    }
+
+    #[test]
+    fn non_string_values_never_match() {
+        assert!(!ev_on("matches(payload.lines[*].qty, \"40\")", &delivery()));
+    }
+
+    #[test]
+    fn missing_and_null_paths_are_false() {
+        assert!(!ev_on("matches(payload.nope, \"x\")", &delivery()));
+        assert!(!ev("matches(payload.nul, \"x\")"));
+    }
+
+    #[test]
+    fn composes_like_any_other_condition() {
+        assert!(ev_on(
+            "matches(payload.carrier, \"^EXP-\") and payload.lines[*].qty > 100",
+            &delivery()
+        ));
+        assert!(ev_on("matches(payload.carrier, \"^EXP-\") == true", &delivery()));
+        assert!(ev_on("matches(payload.carrier, \"^ZZZ\") == false", &delivery()));
+    }
+
+    #[test]
+    fn an_invalid_pattern_is_rejected_at_parse_time() {
+        let msg = parse_err("matches(payload.carrier, \"[unclosed\")");
+        assert!(msg.contains("invalid pattern"), "got `{}`", msg);
+    }
+
+    #[test]
+    fn a_non_literal_pattern_is_rejected() {
+        assert!(parse("matches(payload.carrier, payload.s)").is_err());
+        assert!(parse("matches(payload.carrier, 5)").is_err());
+    }
+
+    #[test]
+    fn a_missing_argument_is_rejected() {
+        assert!(parse("matches(payload.carrier)").is_err());
+        assert!(parse("matches(payload.carrier, \"x\"").is_err());
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Boolean structure
 // ---------------------------------------------------------------------------
 

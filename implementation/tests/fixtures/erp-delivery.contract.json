@@ -1,16 +1,16 @@
 {
   "semanticContractVersion": "1.0",
   "contractId": "erp-delivery",
-  "version": "1.0.0",
-  "description": "Operational overlays for SAP SD outbound delivery documents. Every rule here is keyed off a value in the payload but carries a fact that is not in the payload and could not be written into the tool's outputSchema, because it is true only right now and it is held in a system the ERP delivery API does not read: quality holds, carrier incidents, licence status, engineering changes, legal matters, migration cutovers. Field meaning that is stable for every delivery — what podReceived implies under DAP, how estimatedArrival is derived — belongs in erp-delivery.outputschema.json and is deliberately not repeated here. The owner of each rule is the team that holds the fact, never the team that owns the API.",
+  "version": "1.1.0",
+  "description": "Operational overlays for SAP SD outbound delivery documents. Every rule here is keyed off a value in the payload but carries a fact that is not in the payload and could not be written into the tool's outputSchema, because it is true only right now and it is held in a system the ERP delivery API does not read: quality holds, carrier incidents, licence status, engineering changes, legal matters, migration cutovers. Field meaning that is stable for every delivery — what podReceived implies under DAP, how estimatedArrival is derived — belongs in erp-delivery.outputschema.json and is deliberately not repeated here. The owner of each rule is the team that holds the fact, never the team that owns the API. Line-item rules quantify over items[*] and match batch series by pattern, so a rule covers every line of a delivery and every batch in a recalled series without being re-authored per document.",
   "owner": "erp-platform",
   "toolMapping": ["get_delivery_document"],
   "rules": [
     {
       "id": "batch-under-recall",
       "severity": "critical",
-      "when": "payload.items[0].batchNumber == \"B-7741-2026\" or payload.items[1].batchNumber == \"B-7741-2026\"",
-      "guidance": "A line on this delivery was picked from batch B-7741-2026, which Quality Assurance placed under recall QN-2026-0412 on 2026-08-15. Stock from that batch is not fit for use. Do not confirm this delivery to the customer, do not quote an arrival date for it, and route it to Quality Assurance before any customer contact.",
+      "when": "matches(payload.items[*].batchNumber, \"^B-7741-\")",
+      "guidance": "A line on this delivery was picked from batch series B-7741, which Quality Assurance placed under recall QN-2026-0412 on 2026-08-15. No stock from that series is fit for use, on any line of any delivery. Do not confirm this delivery to the customer, do not quote an arrival date for it, and route it to Quality Assurance before any customer contact.",
       "reference": "QN-2026-0412"
     },
     {
@@ -37,7 +37,7 @@
     {
       "id": "material-superseded",
       "severity": "warn",
-      "when": "payload.items[0].material == \"MAT-88120\" or payload.items[1].material == \"MAT-88120\"",
+      "when": "payload.items[*].material == \"MAT-88120\"",
       "guidance": "Material MAT-88120 was superseded by MAT-88121 on 2026-08-03 under engineering change ECN-4471. Stock on this delivery is pre-change and does not meet the current drawing revision, so it may not be interchangeable with what the customer expects. Confirm with Engineering before telling them this fulfils their requirement.",
       "reference": "ECN-4471"
     },

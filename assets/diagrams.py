@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Renders the demo diagrams.
 
-Seven figures: four scenario diagrams showing what diverges for a given prompt,
+Eight figures: four scenario diagrams showing what diverges for a given prompt,
 one architecture diagram of the request/response path, the rule map tying each
-rule's `when` expression to the system its guidance comes from, and a functional
-view of a single response being interpreted field by field.
+rule's `when` expression to the system its guidance comes from, a functional
+view of a single response being interpreted field by field, and a side-by-side of
+the two replies drafted for the same prompt, governed and ungoverned.
 
     python3 assets/diagrams.py
 """
@@ -484,9 +485,9 @@ def render_pipeline():
 
 RULES = [
     ("batch-under-recall", "critical", "0080067890",
-     ['payload.items[0].batchNumber == "B-7741-2026"',
-      'or payload.items[1].batchNumber == "B-7741-2026"'],
-     "that batch went under recall on 2026-08-15",
+     ['matches(payload.items[*].batchNumber,',
+      '        "^B-7741-")'],
+     "that batch series went under recall on 2026-08-15",
      "Quality Assurance  ·  QN-2026-0412"),
     ("carrier-service-suspended", "critical", "0080067890",
      ['payload.shipping.carrier == "EXP-DE"',
@@ -503,8 +504,7 @@ RULES = [
      "ship-to is in active commercial dispute",
      "Legal  ·  LEG-2026-0088"),
     ("material-superseded", "warn", "0080067890",
-     ['payload.items[0].material == "MAT-88120"',
-      'or payload.items[1].material == "MAT-88120"'],
+     ['payload.items[*].material == "MAT-88120"'],
      "MAT-88120 superseded by MAT-88121 on 2026-08-03",
      "Engineering  ·  ECN-4471"),
     ("legacy-plant-pricing", "warn", "0080067890",
@@ -596,14 +596,13 @@ MECH_RULES = [
      "Reads shipToParty, compares false: the hold is on C-10029.",
      "Legal  ·  LEG-2026-0088"),
     ("material-superseded", "warn",
-     ['payload.items[0].material == "MAT-88120" or',
-      'payload.items[1].material == "MAT-88120"'],
+     ['payload.items[*].material == "MAT-88120"'],
      "MAT-88120 was superseded by MAT-88121 on 2026-08-03.",
      "Engineering  ·  ECN-4471"),
     ("batch-under-recall", "critical",
-     ['payload.items[0].batchNumber == "B-7741-2026" or',
-      'payload.items[1].batchNumber == "B-7741-2026"'],
-     "That batch went under recall on 2026-08-15. Do not deliver.",
+     ['matches(payload.items[*].batchNumber,',
+      '        "^B-7741-")'],
+     "That batch series went under recall on 2026-08-15. Do not deliver.",
      "Quality Assurance  ·  QN-2026-0412"),
     ("carrier-service-suspended", "critical",
      ['payload.shipping.carrier == "EXP-DE" and',
@@ -771,9 +770,198 @@ def render_mechanism():
     save(fig, "how-it-works.png")
 
 
+# ---------------------------------------------------------------------------
+# Two agents, one prompt: the replies each actually drafted
+# ---------------------------------------------------------------------------
+
+PROMPT = (
+    "A customer, Nordwerk Maschinenbau, is asking about delivery 0080067890. They need to know when it "
+    "will arrive so they can schedule an installation crew. Write the reply you would send them."
+)
+
+# (text, colour, bold) — the two replies, abridged to the passage that diverges
+LEFT_REPLY = [
+    ("Your shipment left our plant on 16 August 2026 and is in transit with", BODY, False),
+    ("ExpressLog Deutschland under tracking number EXPDE-4417820934. Our system", BODY, False),
+    ("currently shows an estimated arrival of 19 August 2026 at your site.", BAD, True),
+    ("", BODY, False),
+    ("Please treat 19 August as a planning estimate rather than a firm date — it", BODY, False),
+    ("reflects the shipment plan and not the live transit status. Before you commit", BODY, False),
+    ("your installation crew to a fixed slot, I'd recommend confirming against live", BODY, False),
+    ("carrier tracking using the number above.", BODY, False),
+]
+
+RIGHT_REPLY = [
+    ("I'd rather give you a date you can build a schedule on than one that might", BODY, False),
+    ("move, so I'm not going to quote a firm arrival date just yet. This consignment", BODY, False),
+    ("is going through a final internal check, and our logistics partner is re-routing", BODY, False),
+    ("shipments in your region this week, so the original estimate is being revised.", BODY, False),
+    ("For that reason, please don't lock in the installation crew against a fixed", GOOD, True),
+    ("date yet.", GOOD, True),
+    ("", BODY, False),
+    ("I'm getting a confirmed arrival window now and will come back to you by", BODY, False),
+    ("[callback] with either a firm delivery slot or a clear update on timing.", BODY, False),
+]
+
+UNSTATED_FACTS = [
+    ("Quality Assurance", "QN-2026-0412",
+     "batch B-7741-2026 on line 20 went under recall on 15 August"),
+    ("Logistics", "LOG-INC-2026-0231",
+     "express service suspended 16 August, Cologne hub fire"),
+    ("Engineering", "ECN-4471",
+     "MAT-88120 superseded by MAT-88121 on 3 August"),
+]
+
+PROMPT_H, HEADER_H, TOOL_H, REPLY_H, VERDICT_H, BAND_H = 1.05, 0.60, 3.25, 3.35, 1.25, 1.35
+
+
+def render_two_agents():
+    h = (0.95 + BAND_H + 0.46 + VERDICT_H + 0.26 + REPLY_H + 0.26
+         + TOOL_H + 0.26 + HEADER_H + 0.40 + PROMPT_H + 1.42)
+    fig, ax = canvas(h)
+    heading(
+        ax, h,
+        "The same question, asked of two agents",
+        "Identical prompt, identical tool, identical outputSchema. The only difference is whether the response came back through the gateway.",
+    )
+
+    # ---- the shared prompt ------------------------------------------------
+    p_top = h - 1.42
+    box(ax, 0.35, p_top - PROMPT_H, W - 0.70, PROMPT_H, INK, INK, lw=1.4)
+    ax.text(0.68, p_top - 0.30, "THE PROMPT, SENT TO BOTH", fontsize=8.5,
+            fontweight="bold", color="#94a3b8", va="center")
+    for i, line in enumerate(textwrap.wrap(PROMPT, 118)):
+        ax.text(0.68, p_top - 0.60 - 0.28 * i, line, fontsize=9.5,
+                color="#f1f5f9", va="center", family=MONO)
+
+    LW = (W - 1.4) / 2
+    LX = [0.35, 0.35 + LW + 0.70]
+
+    lane_top = p_top - PROMPT_H - 0.40
+    tool_top = lane_top - HEADER_H - 0.26
+    reply_top = tool_top - TOOL_H - 0.26
+    verdict_top = reply_top - REPLY_H - 0.26
+    band_top = verdict_top - VERDICT_H - 0.46
+
+    for x, label, sub, edge, fill, ink in [
+        (LX[0], "AGENT A   ·   UNGOVERNED", "straight to the MCP server",
+         SLATE_EDGE, SLATE_FILL, INK),
+        (LX[1], "AGENT B   ·   GOVERNED", "through Omni Gateway",
+         GOV_EDGE, GOV_FILL, GOV_INK),
+    ]:
+        box(ax, x, lane_top - HEADER_H, LW, HEADER_H, fill, edge, lw=1.5)
+        ax.text(x + 0.28, lane_top - HEADER_H / 2, label, fontsize=10.5,
+                fontweight="bold", color=ink, va="center")
+        ax.text(x + LW - 0.28, lane_top - HEADER_H / 2, sub, fontsize=9,
+                color=MUTED, ha="right", va="center", style="italic")
+        arrow(ax, (x + LW / 2, p_top - PROMPT_H - 0.04), (x + LW / 2, lane_top),
+              color=edge, lw=1.5)
+
+    # ---- what came back from the tool ------------------------------------
+    box(ax, LX[0], tool_top - TOOL_H, LW, TOOL_H, "#ffffff", SLATE_EDGE, lw=1.3)
+    ax.text(LX[0] + 0.28, tool_top - 0.34, "WHAT CAME BACK FROM THE TOOL",
+            fontsize=8.5, fontweight="bold", color=MUTED, va="center")
+    for i, (line, colour) in enumerate([
+        ("structuredContent   header, items[], shipping, status", BODY),
+        ("shipping.estimatedArrival   \"2026-08-19\"", INK),
+        ("content[]   the same document as text", BODY),
+    ]):
+        ax.text(LX[0] + 0.44, tool_top - 0.78 - 0.32 * i, line, fontsize=8.5,
+                color=colour, va="center", family=MONO)
+    ax.plot([LX[0] + 0.28, LX[0] + LW - 0.28],
+            [tool_top - 1.86, tool_top - 1.86], color=RULE_LINE, linewidth=1)
+    ax.text(LX[0] + 0.28, tool_top - 2.24, "No annotation of any kind.",
+            fontsize=9, color=MUTED, va="center", style="italic")
+    ax.text(LX[0] + 0.28, tool_top - 2.60,
+            "The one date in the document is the only date it has,",
+            fontsize=9, color=MUTED, va="center", style="italic")
+    ax.text(LX[0] + 0.28, tool_top - 2.86, "so the answer is built on it.",
+            fontsize=9, color=MUTED, va="center", style="italic")
+
+    box(ax, LX[1], tool_top - TOOL_H, LW, TOOL_H, "#ffffff", GOV_EDGE, lw=1.3)
+    ax.text(LX[1] + 0.28, tool_top - 0.34, "WHAT CAME BACK FROM THE GATEWAY",
+            fontsize=8.5, fontweight="bold", color=GOV_INK, va="center")
+    for i, (line, colour, bold) in enumerate([
+        ("structuredContent   unchanged, byte for byte", BODY, False),
+        ("  + _semanticContract   4 entries", GOV_INK, True),
+    ]):
+        ax.text(LX[1] + 0.44, tool_top - 0.78 - 0.32 * i, line, fontsize=8.5,
+                color=colour, va="center", family=MONO,
+                fontweight="bold" if bold else "normal")
+    ax.plot([LX[1] + 0.28, LX[1] + LW - 0.28],
+            [tool_top - 1.50, tool_top - 1.50], color=RULE_LINE, linewidth=1)
+    draw_items(
+        ax, LX[1], LW, tool_top - 1.58,
+        [("rule", ("batch-under-recall", "critical")),
+         ("rule", ("carrier-service-suspended", "critical")),
+         ("rule", ("material-superseded", "warn")),
+         ("rule", ("legacy-plant-pricing", "warn"))],
+        GOV_EDGE, GOV_INK,
+    )
+    ax.text(LX[1] + 0.28, tool_top - 3.02,
+            "Four rules matched the payload; two others stayed silent.",
+            fontsize=9, color=MUTED, va="center", style="italic")
+
+    # ---- the reply each one drafted --------------------------------------
+    for x, edge, ink, lines, label in [
+        (LX[0], SLATE_EDGE, INK, LEFT_REPLY, "THE REPLY IT DRAFTED"),
+        (LX[1], GOV_EDGE, GOV_INK, RIGHT_REPLY, "THE REPLY IT DRAFTED"),
+    ]:
+        box(ax, x, reply_top - REPLY_H, LW, REPLY_H, "#ffffff", edge, lw=1.3)
+        ax.text(x + 0.28, reply_top - 0.34, label, fontsize=8.5,
+                fontweight="bold", color=MUTED, va="center")
+        ax.text(x + LW - 0.28, reply_top - 0.34,
+                "abridged to the passage that diverges", fontsize=8.2, color=MUTED,
+                ha="right", va="center", style="italic")
+        ax.text(x + 0.28, reply_top - 0.66, "Dear Nordwerk Maschinenbau team,",
+                fontsize=9.2, color=BODY, va="center")
+        for i, (line, colour, bold) in enumerate(lines):
+            ax.text(x + 0.28, reply_top - 1.00 - 0.28 * i, line, fontsize=9.2,
+                    color=colour, va="center", fontweight="bold" if bold else "normal")
+
+    # ---- the verdict ------------------------------------------------------
+    for x, ok, claim, why in [
+        (LX[0], False, "The customer books a crew for 19 August.",
+         "That date was computed from a service the carrier stopped running on the 16th, for goods that include recalled stock."),
+        (LX[1], True, "No date quoted, no crew committed.",
+         "The three teams that hold the facts — Quality, Logistics, Engineering — are named as the follow-ups the reply depends on."),
+    ]:
+        colour, fill = (GOOD, GOOD_FILL) if ok else (BAD, BAD_FILL)
+        arrow(ax, (x + LW / 2, reply_top - REPLY_H - 0.04), (x + LW / 2, verdict_top),
+              color=colour, lw=1.5)
+        box(ax, x, verdict_top - VERDICT_H, LW, VERDICT_H, fill, colour, lw=1.5)
+        ax.text(x + 0.28, verdict_top - 0.32,
+                ("✓  " if ok else "✗  ") + claim, fontsize=9.6,
+                fontweight="bold", color=colour, va="center")
+        for i, line in enumerate(textwrap.wrap(why, 86)):
+            ax.text(x + 0.28, verdict_top - 0.66 - 0.26 * i, line, fontsize=8.8,
+                    color=INK, va="center")
+
+    # ---- the facts that decided it ---------------------------------------
+    box(ax, 0.35, band_top - BAND_H, W - 0.70, BAND_H, GOV_FILL, GOV_EDGE, lw=1.4)
+    ax.text(0.62, band_top - 0.34,
+            "The three facts that decide this answer. Not one is in the payload, and not one could be written into the tool's outputSchema.",
+            fontsize=9.6, fontweight="bold", color=GOV_INK, va="center")
+    cw = (W - 1.24) / 3
+    for i, (owner, ref, fact) in enumerate(UNSTATED_FACTS):
+        cx = 0.62 + i * cw
+        ax.text(cx, band_top - 0.74, f"{owner}  ·  {ref}", fontsize=8.6,
+                fontweight="bold", color=GOV_INK, va="center", family=MONO)
+        for j, line in enumerate(textwrap.wrap(fact, 64)):
+            ax.text(cx, band_top - 1.04 - 0.24 * j, line, fontsize=8.6,
+                    color=BODY, va="center")
+
+    footer(
+        ax,
+        "Agent A is not a weak agent: it hedged the estimate correctly, because the outputSchema documents estimatedArrival as a rate-table calculation. It still sent a date, because the schema had nothing to say about this consignment today.",
+    )
+    save(fig, "two-agents.png")
+
+
 if __name__ == "__main__":
     for spec in SCENARIOS:
         render_scenario(spec)
     render_pipeline()
     render_rule_map()
     render_mechanism()
+    render_two_agents()

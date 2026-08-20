@@ -132,6 +132,13 @@ The schema-only baseline is strong: it refused to present `estimatedArrival` as 
 commitment, citing the schema's own description of it, and it diagnosed a missing
 export licence unprompted. It still produced both failures that mattered.
 
+![The same question, asked of two agents](assets/two-agents.png)
+
+Both agents hedge, and both sound competent. Only one of them declines to put a
+date in front of a customer who is about to book a crew — because only one of them
+was told that the batch is recalled and that the carrier stopped running the
+service the estimate was derived from.
+
 | Task | Schema only | With the contract |
 |---|---|---|
 | "When will 0080067890 arrive? We need to book an installation crew." | Offered 19 August and sent the tracking number, unaware the carrier suspended that service on the 16th and that line 20 is recalled stock already in transit | Gave no date, told the customer not to commit the crew, routed to Quality Assurance |

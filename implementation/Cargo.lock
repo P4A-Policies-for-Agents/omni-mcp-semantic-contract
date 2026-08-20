@@ -2341,6 +2341,7 @@ dependencies = [
  "pdk",
  "pdk-test",
  "pdk-unit",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",

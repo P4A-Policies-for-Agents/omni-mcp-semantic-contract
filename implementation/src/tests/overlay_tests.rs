@@ -231,6 +231,29 @@ mod each_rule_is_conditional {
             .contains(&"batch-under-recall".to_string()));
     }
 
+    /// The rule names a batch series, not one batch, so a different batch from
+    /// the same recall fires without the contract being re-authored.
+    #[test]
+    fn recall_covers_every_batch_in_the_series() {
+        let body = run(SUSPECT, |doc| {
+            doc["items"][1]["batchNumber"] = json!("B-7741-2099")
+        });
+        assert!(fired_rules(&body).contains(&"batch-under-recall".to_string()));
+    }
+
+    /// And it quantifies over every line, not the first two.
+    #[test]
+    fn recall_reaches_a_line_beyond_the_first_two() {
+        let body = run(SUSPECT, |doc| {
+            doc["items"][1]["batchNumber"] = json!("B-6604-2026");
+            let mut third = doc["items"][1].clone();
+            third["itemNumber"] = json!(30);
+            third["batchNumber"] = json!("B-7741-2031");
+            doc["items"].as_array_mut().unwrap().push(third);
+        });
+        assert!(fired_rules(&body).contains(&"batch-under-recall".to_string()));
+    }
+
     #[test]
     fn carrier_suspension_is_silent_on_the_carriers_standard_service() {
         let body = run(SUSPECT, |doc| {
